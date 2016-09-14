@@ -8,7 +8,7 @@
 
   This library is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
   See the GNU Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public
@@ -27,29 +27,43 @@
  * ATTENTION:
  * This function performs better with short pulses in noInterrupt() context
  */
+
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+
 uint32_t pulseIn( uint32_t pin, uint32_t state, uint32_t timeout )
 {
-	// cache the port and bit of the pin in order to speed up the
-	// pulse width measuring loop and achieve finer resolution.  calling
-	// digitalRead() instead yields much coarser resolution.
-	PinDescription p = g_APinDescription[pin];
-	uint32_t bit = p.ulPin;
-	uint32_t stateMask = state ? bit : 0;
-	
-	// convert the timeout from microseconds to a number of times through
-	// the initial loop; it takes (roughly) 18 clock cycles per iteration.
-	uint32_t maxloops = microsecondsToClockCycles(timeout) / 18;
+  uint32_t startMicros = micros();
+  uint32_t start_level = (uint32_t)digitalRead(pin);
+  uint32_t current_level = start_level;
 
-	uint32_t width = countPulseASM(&(p.pPort->PIO_PDSR), bit, stateMask, maxloops);
+  while(current_level == start_level) {
+    if (micros() - startMicros > timeout) {
+      return 0;
+    }
+    current_level = (uint32_t)digitalRead(pin);
+  }
 
-	// convert the reading to microseconds. The loop has been determined
-	// to be 18 clock cycles long and have about 16 clocks between the edge
-	// and the start of the loop. There will be some error introduced by
-	// the interrupt handlers.
-	if (width)
-		return clockCyclesToMicroseconds(width * 18 + 16);
-	else
-		return 0;
+  while(current_level != state) {
+    if (micros() - startMicros > timeout) {
+      return 0;
+    }
+    current_level = (uint32_t)digitalRead(pin);
+  }
+
+  //lets start measuring the pulse time now
+  startMicros = micros();
+
+  while(current_level == state) {
+    if (micros() - startMicros > timeout) {
+      return 0;
+    }
+    current_level = (uint32_t)digitalRead(pin);
+  }
+
+  return (micros() - startMicros);
 }
 
 /* Measures the length (in microseconds) of a pulse on the pin; state is HIGH
@@ -62,32 +76,9 @@ uint32_t pulseIn( uint32_t pin, uint32_t state, uint32_t timeout )
  */
 uint32_t pulseInLong(uint8_t pin, uint8_t state, unsigned long timeout)
 {
-	// cache the port and bit of the pin in order to speed up the
-	// pulse width measuring loop and achieve finer resolution.  calling
-	// digitalRead() instead yields much coarser resolution.
-	PinDescription p = g_APinDescription[pin];
-	uint32_t bit = p.ulPin;
-	uint32_t stateMask = state ? bit : 0;
-
-	unsigned long startMicros = micros();
-
-	// wait for any previous pulse to end
-	while ((p.pPort->PIO_PDSR & bit) == stateMask) {
-		if (micros() - startMicros > timeout)
-			return 0;
-	}
-
-	// wait for the pulse to start
-	while ((p.pPort->PIO_PDSR & bit) != stateMask) {
-		if (micros() - startMicros > timeout)
-			return 0;
-	}
-
-	unsigned long start = micros();
-	// wait for the pulse to stop
-	while ((p.pPort->PIO_PDSR & bit) == stateMask) {
-		if (micros() - startMicros > timeout)
-			return 0;
-	}
-	return micros() - start;
+  return pulseIn(pin, state, timeout);
 }
+
+#ifdef __cplusplus
+}
+#endif

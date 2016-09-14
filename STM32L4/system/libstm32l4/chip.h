@@ -16,49 +16,41 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "Arduino.h"
+#ifndef _CHIP_H_
+#define _CHIP_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-uint32_t millis( void )
-{
-  // todo: ensure no interrupts
-  return GetCurrentMilli() ;
-}
-
-// Interrupt-compatible version of micros
-uint32_t micros( void )
-{
- return GetCurrentMicro();
-}
-
-void delay( uint32_t ms )
-{
-  if (ms == 0)
-      return;
-  uint32_t start = GetCurrentMilli();
-  do {
-      yield();
-  } while (GetCurrentMilli() - start < ms);
-}
-
-#if defined ( __ICCARM__ ) /* IAR Ewarm 5.41+ */
-extern signed int putchar( signed int c ) ;
-/**
- * \brief
- *
- * \param c  Character to output.
- *
- * \return The character that was output.
+/*
+ * Core and peripherals registers definitions
  */
-extern WEAK signed int putchar( signed int c )
-{
-    return c ;
-}
-#endif /* __ICCARM__ */
+#include "include/hw_config.h"
+#include "include/digital_io.h"
+#include "include/clock.h"
+#include "include/uart_emul.h"
+#include "include/uart.h"
+#include "include/analog.h"
+#include "include/interrupt.h"
+#include "include/spi_com.h"
+#include "include/timer.h"
+#include "include/twi.h"
+#include "include/stm32_eeprom.h"
 
-#ifdef __cplusplus
-}
+/* Define attribute */
+#if defined (  __GNUC__  ) /* GCC CS3 */
+    #define WEAK __attribute__ ((weak))
+#elif defined ( __ICCARM__ ) /* IAR Ewarm 5.41+ */
+    #define WEAK __weak
 #endif
+
+/* Define NO_INIT attribute */
+#if defined (  __GNUC__  )
+    #define NO_INIT
+#elif defined ( __ICCARM__ )
+    #define NO_INIT __no_init
+#endif
+
+/*
+ * Peripherals
+ */
+
+
+#endif /* _CHIP_H_ */

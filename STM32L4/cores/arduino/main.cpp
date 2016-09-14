@@ -42,7 +42,7 @@ void initVariant() { }
 int main( void )
 {
 	// Initialize watchdog
-	watchdogSetup();
+	//watchdogSetup();
 
 	init();
 

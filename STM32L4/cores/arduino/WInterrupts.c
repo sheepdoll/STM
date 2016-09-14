@@ -8,7 +8,7 @@
 
   This library is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
   See the GNU Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public
@@ -18,165 +18,75 @@
 
 #include "WInterrupts.h"
 
-typedef void (*interruptCB)(void);
+#ifdef __cplusplus
+ extern "C" {
+#endif
 
-static interruptCB callbacksPioA[32];
-static interruptCB callbacksPioB[32];
-static interruptCB callbacksPioC[32];
-static interruptCB callbacksPioD[32];
-
-/* Configure PIO interrupt sources */
-static void __initialize() {
-	int i;
-	for (i=0; i<32; i++) {
-		callbacksPioA[i] = NULL;
-		callbacksPioB[i] = NULL;
-		callbacksPioC[i] = NULL;
-		callbacksPioD[i] = NULL;
-	}
-
-	pmc_enable_periph_clk(ID_PIOA);
-	NVIC_DisableIRQ(PIOA_IRQn);
-	NVIC_ClearPendingIRQ(PIOA_IRQn);
-	NVIC_SetPriority(PIOA_IRQn, 0);
-	NVIC_EnableIRQ(PIOA_IRQn);
-
-	pmc_enable_periph_clk(ID_PIOB);
-	NVIC_DisableIRQ(PIOB_IRQn);
-	NVIC_ClearPendingIRQ(PIOB_IRQn);
-	NVIC_SetPriority(PIOB_IRQn, 0);
-	NVIC_EnableIRQ(PIOB_IRQn);
-
-	pmc_enable_periph_clk(ID_PIOC);
-	NVIC_DisableIRQ(PIOC_IRQn);
-	NVIC_ClearPendingIRQ(PIOC_IRQn);
-	NVIC_SetPriority(PIOC_IRQn, 0);
-	NVIC_EnableIRQ(PIOC_IRQn);
-
-	pmc_enable_periph_clk(ID_PIOD);
-	NVIC_DisableIRQ(PIOD_IRQn);
-	NVIC_ClearPendingIRQ(PIOD_IRQn);
-	NVIC_SetPriority(PIOD_IRQn, 0);
-	NVIC_EnableIRQ(PIOD_IRQn);
-}
+//This is the list of the digital IOs configured
+PinDescription g_intPinConfigured[MAX_DIGITAL_IOS];
 
 
 void attachInterrupt(uint32_t pin, void (*callback)(void), uint32_t mode)
 {
-	static int enabled = 0;
-	if (!enabled) {
-		__initialize();
-		enabled = 1;
-	}
+  int i;
+  uint32_t it_mode;
 
-	// Retrieve pin information
-	Pio *pio = g_APinDescription[pin].pPort;
-	uint32_t mask = g_APinDescription[pin].ulPin;
-	uint32_t pos = 0;
+  //not a valid pin
+  if(pin>MAX_DIGITAL_IOS) {
+    return ;
+  }
 
-	uint32_t t;
-	for (t = mask; t>1; t>>=1, pos++)
-		;
+  //find the pin.
+  for(i = 0; i < NB_PIN_DESCRIPTIONS; i++) {
+    if(g_APinDescription[i].arduino_id == pin) {
+      g_intPinConfigured[pin] = g_APinDescription[i];
+      g_intPinConfigured[pin].configured = true;
+      break;
+    }
+  }
 
-	// Set callback function
-	if (pio == PIOA)
-		callbacksPioA[pos] = callback;
-	if (pio == PIOB)
-		callbacksPioB[pos] = callback;
-	if (pio == PIOC)
-		callbacksPioC[pos] = callback;
-	if (pio == PIOD)
-		callbacksPioD[pos] = callback;
+  switch(mode) {
 
-	// Configure the interrupt mode
-	if (mode == CHANGE) {
-		// Disable additional interrupt mode (detects both rising and falling edges)
-		pio->PIO_AIMDR = mask;
-	} else {
-		// Enable additional interrupt mode
-		pio->PIO_AIMER = mask;
+    case CHANGE :
+      it_mode = GPIO_MODE_IT_RISING_FALLING;
+    break;
 
-		// Select mode of operation
-		if (mode == LOW) {
-			pio->PIO_LSR = mask;    // "Level" Select Register
-			pio->PIO_FELLSR = mask; // "Falling Edge / Low Level" Select Register
-		}
-		if (mode == HIGH) {
-			pio->PIO_LSR = mask;    // "Level" Select Register
-			pio->PIO_REHLSR = mask; // "Rising Edge / High Level" Select Register
-		}
-		if (mode == FALLING) {
-			pio->PIO_ESR = mask;    // "Edge" Select Register
-			pio->PIO_FELLSR = mask; // "Falling Edge / Low Level" Select Register
-		}
-		if (mode == RISING) {
-			pio->PIO_ESR = mask;    // "Edge" Select Register
-			pio->PIO_REHLSR = mask; // "Rising Edge / High Level" Select Register
-		}
-	}
+    case FALLING :
+    case LOW :
+      it_mode = GPIO_MODE_IT_FALLING;
+    break;
+    case RISING :
+    case HIGH :
+      it_mode = GPIO_MODE_IT_RISING;
+    break;
+    default:
+      it_mode = GPIO_MODE_IT_RISING;
+    break;
+  }
 
-	// Enable interrupt
-	pio->PIO_IER = mask;
+  stm32_interrupt_enable(g_intPinConfigured[pin].ulPort,
+                          g_intPinConfigured[pin].ulPin, callback, it_mode);
+
 }
 
 void detachInterrupt(uint32_t pin)
 {
-	// Retrieve pin information
-	Pio *pio = g_APinDescription[pin].pPort;
-	uint32_t mask = g_APinDescription[pin].ulPin;
+  int i;
 
-	// Disable interrupt
-	pio->PIO_IDR = mask;
-}
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void PIOA_Handler(void) {
-  uint32_t isr = PIOA->PIO_ISR;
-  uint8_t leading_zeros;
-  while((leading_zeros=__CLZ(isr))<32)
-  {
-    uint8_t pin=32-leading_zeros-1;
-    if(callbacksPioA[pin]) callbacksPioA[pin]();
-    isr=isr&(~(1<<pin));
+  //not a valid pin
+  if(pin>MAX_DIGITAL_IOS) {
+    return ;
   }
-}
 
-void PIOB_Handler(void) {
-  uint32_t isr = PIOB->PIO_ISR;
-  uint8_t leading_zeros;
-  while((leading_zeros=__CLZ(isr))<32)
-  {
-    uint8_t pin=32-leading_zeros-1;
-    if(callbacksPioB[pin]) callbacksPioB[pin]();
-    isr=isr&(~(1<<pin));
+  //find the pin.
+  for(i = 0; i < NB_PIN_DESCRIPTIONS; i++) {
+    if(g_APinDescription[i].arduino_id == pin) {
+      g_intPinConfigured[pin] = g_APinDescription[i];
+      g_intPinConfigured[pin].configured = true;
+      break;
+    }
   }
-}
 
-void PIOC_Handler(void) {
-  uint32_t isr = PIOC->PIO_ISR;
-  uint8_t leading_zeros;
-  while((leading_zeros=__CLZ(isr))<32)
-  {
-    uint8_t pin=32-leading_zeros-1;
-    if(callbacksPioC[pin]) callbacksPioC[pin]();
-    isr=isr&(~(1<<pin));
-  }
+  stm32_interrupt_disable(g_intPinConfigured[pin].ulPort,
+                          g_intPinConfigured[pin].ulPin);
 }
-
-void PIOD_Handler(void) {
-  uint32_t isr = PIOD->PIO_ISR;
-  uint8_t leading_zeros;
-  while((leading_zeros=__CLZ(isr))<32)
-  {
-    uint8_t pin=32-leading_zeros-1;
-    if(callbacksPioD[pin]) callbacksPioD[pin]();
-    isr=isr&(~(1<<pin));
-  }
-}
-
-#ifdef __cplusplus
-}
-#endif

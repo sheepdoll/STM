@@ -32,11 +32,12 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include "sam.h"
 #if defined (  __GNUC__  ) /* GCC CS3 */
   #include <sys/types.h>
   #include <sys/stat.h>
 #endif
+
+#include "Arduino.h"
 
 // Helper macro to mark unused parameters and prevent compiler warnings.
 // Appends _UNUSED to the variable name to prevent accidentally using them.
@@ -63,86 +64,75 @@ extern int _getpid ( void ) ;
 
 extern caddr_t _sbrk ( int incr )
 {
-    static unsigned char *heap = NULL ;
-    unsigned char *prev_heap ;
+  static unsigned char *heap = NULL ;
+  unsigned char *prev_heap ;
 
-    if ( heap == NULL )
-    {
-        heap = (unsigned char *)&_end ;
-    }
-    prev_heap = heap;
+  if ( heap == NULL )
+  {
+    heap = (unsigned char *)&_end ;
+  }
+  prev_heap = heap;
 
-    heap += incr ;
+  heap += incr ;
 
-    return (caddr_t) prev_heap ;
+  return (caddr_t) prev_heap ;
 }
 
 extern int link( UNUSED(char *cOld), UNUSED(char *cNew) )
 {
-    return -1 ;
+  return -1 ;
 }
 
 extern int _close( UNUSED(int file) )
 {
-    return -1 ;
+  return -1 ;
 }
 
 extern int _fstat( UNUSED(int file), struct stat *st )
 {
-    st->st_mode = S_IFCHR ;
+  st->st_mode = S_IFCHR ;
 
-    return 0 ;
+  return 0 ;
 }
 
 extern int _isatty( UNUSED(int file) )
 {
-    return 1 ;
+  return 1 ;
 }
 
 extern int _lseek( UNUSED(int file), UNUSED(int ptr), UNUSED(int dir) )
 {
-    return 0 ;
+  return 0 ;
 }
 
 extern int _read(UNUSED(int file), UNUSED(char *ptr), UNUSED(int len) )
 {
-    return 0 ;
+  return 0 ;
 }
 
 extern int _write( UNUSED(int file), char *ptr, int len )
 {
-    int iIndex ;
+  int iIndex = 0;
 
-
-//    for ( ; *ptr != 0 ; ptr++ )
-    for ( iIndex=0 ; iIndex < len ; iIndex++, ptr++ )
-    {
-//        UART_PutChar( *ptr ) ;
-
-		// Check if the transmitter is ready
-		  while ((UART->UART_SR & UART_SR_TXRDY) != UART_SR_TXRDY)
-			;
-
-		  // Send character
-		  UART->UART_THR = *ptr;
-    }
-
-    return iIndex ;
+  for ( iIndex=0 ; iIndex < len ; iIndex++) {
+    uart_write(USART2_E, ptr[iIndex]);
+  }
+  return iIndex ;
 }
 
 extern void _exit( int status )
 {
-    printf( "Exiting with status %d.\n", status ) ;
+  printf( "Exiting with status %d.\n", status ) ;
 
-    for ( ; ; ) ;
+  for ( ; ; ) ;
 }
 
 extern void _kill( UNUSED(int pid), UNUSED(int sig) )
 {
-    return ;
+  return ;
 }
 
 extern int _getpid ( void )
 {
-    return -1 ;
+  return -1 ;
 }

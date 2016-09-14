@@ -27,7 +27,7 @@
 extern "C"{
 #endif
 
-// Includes Atmel CMSIS
+// Includes ST CMSIS
 #include <chip.h>
 
 #include "wiring_constants.h"

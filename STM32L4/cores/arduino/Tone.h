@@ -19,5 +19,28 @@
 #ifndef _WIRING_TONE_
 #define _WIRING_TONE_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * \brief Generate a tone to a pin.
+ *
+ * \param _pin
+ * \param frequency Tone frequency (in hertz)
+ * \param duration  Tone duration (in milliseconds)
+ */
+extern void tone(uint8_t _pin, unsigned int frequency, unsigned long duration = 0);
+
+/*
+ * \brief Stop tone generation on pin.
+ *
+ * \param _pin
+ */
+extern void noTone(uint8_t _pin);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _WIRING_TONE_ */

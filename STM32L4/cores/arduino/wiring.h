@@ -9,7 +9,7 @@
 
   This library is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
   See the GNU Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public
@@ -66,18 +66,9 @@ extern void delay( uint32_t dwMs ) ;
  */
 static inline void delayMicroseconds(uint32_t) __attribute__((always_inline, unused));
 static inline void delayMicroseconds(uint32_t usec){
-    /*
-     * Based on Paul Stoffregen's implementation
-     * for Teensy 3.0 (http://www.pjrc.com/)
-     */
-    if (usec == 0) return;
-    uint32_t n = usec * (VARIANT_MCK / 3000000);
-    asm volatile(
-        "L_%=_delayMicroseconds:"       "\n\t"
-        "subs   %0, #1"                 "\n\t"
-        "bne    L_%=_delayMicroseconds" "\n"
-        : "+r" (n) :
-    );
+  uint32_t start = GetCurrentMicro();
+
+  while((start+usec) > GetCurrentMicro());
 }
 
 #ifdef __cplusplus

@@ -20,34 +20,18 @@
 #include <stdio.h>
 #include <string.h>
 #include "USARTClass.h"
+#include "chip.h"
+
 
 // Constructors ////////////////////////////////////////////////////////////////
-
-USARTClass::USARTClass( Usart* pUsart, IRQn_Type dwIrq, uint32_t dwId, RingBuffer* pRx_buffer, RingBuffer* pTx_buffer )
-  : UARTClass((Uart*)pUsart, dwIrq, dwId, pRx_buffer, pTx_buffer)
+USARTClass::USARTClass(uart_id_e uart_id):UARTClass(uart_id)
 {
-  // In case anyone needs USART specific functionality in the future
-  _pUsart=pUsart;
+  p_uart_id = uart_id;
 }
 
 // Public Methods //////////////////////////////////////////////////////////////
 
 void USARTClass::begin(const uint32_t dwBaudRate)
 {
-  begin(dwBaudRate, Mode_8N1);
+  uart_init(p_uart_id, dwBaudRate);
 }
-
-void USARTClass::begin(const uint32_t dwBaudRate, const UARTModes config)
-{
-  uint32_t modeReg = static_cast<uint32_t>(config);
-  modeReg |= US_MR_USART_MODE_NORMAL | US_MR_USCLKS_MCK | US_MR_CHMODE_NORMAL;
-  init(dwBaudRate, modeReg);
-}
-
-void USARTClass::begin(const uint32_t dwBaudRate, const USARTModes config)
-{
-  uint32_t modeReg = static_cast<uint32_t>(config);
-  modeReg |= US_MR_USART_MODE_NORMAL | US_MR_USCLKS_MCK | US_MR_CHMODE_NORMAL;
-  init(dwBaudRate, modeReg);
-}
-

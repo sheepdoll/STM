@@ -22,120 +22,103 @@
  extern "C" {
 #endif
 
+
+//This is the list of the digital IOs configured
+PinDescription g_digPinConfigured[MAX_DIGITAL_IOS];
+extern PinDescription g_anOutputPinConfigured[MAX_DIGITAL_IOS];
+
+
 extern void pinMode( uint32_t ulPin, uint32_t ulMode )
 {
-	if ( g_APinDescription[ulPin].ulPinType == PIO_NOT_A_PIN )
-    {
-        return ;
+  int i;
+
+  //not a valid pin
+  if(ulPin>MAX_DIGITAL_IOS) {
+    return ;
+  }
+
+  //find the pin.
+  for(i = 0; i < NB_PIN_DESCRIPTIONS; i++) {
+    if(g_APinDescription[i].arduino_id == ulPin) {
+      g_digPinConfigured[ulPin] = g_APinDescription[i];
+      g_digPinConfigured[ulPin].configured = true;
+      break;
     }
-
-  if ((g_pinStatus[ulPin] & 0xF) == PIN_STATUS_ANALOG)
-    {
-      adc_disable_channel( ADC, g_APinDescription[ulPin].ulADCChannelNumber);
+  }
+  
+  // If the pin that support PWM or DAC output, we need to turn it off
+  if(g_anOutputPinConfigured[ulPin].configured == true) {
+    if((g_anOutputPinConfigured[ulPin].mode & GPIO_PIN_PWM) == GPIO_PIN_PWM) {
+      pwm_stop(g_anOutputPinConfigured[ulPin].ulPort, g_anOutputPinConfigured[ulPin].ulPin);
+    } else if((g_anOutputPinConfigured[ulPin].mode & GPIO_PIN_DAC) == GPIO_PIN_DAC) {
+      dac_stop(g_anOutputPinConfigured[ulPin].ulPort, g_anOutputPinConfigured[ulPin].ulPin);
     }
-
-  if ((g_pinStatus[ulPin] & 0xF) < PIN_STATUS_DIGITAL_OUTPUT && g_pinStatus[ulPin] != 0)
-    {
-      // return if already configured in the right way
-      if (((g_pinStatus[ulPin] & 0xF) == PIN_STATUS_DIGITAL_INPUT && ulMode == INPUT) ||
-          ((g_pinStatus[ulPin] & 0xF) == PIN_STATUS_DIGITAL_INPUT_PULLUP && ulMode == INPUT_PULLUP) ||
-          ((g_pinStatus[ulPin] & 0xF) == PIN_STATUS_DIGITAL_OUTPUT && ulMode == OUTPUT))
-      return;
-    }
-
-	switch ( ulMode )
-    {
-        case INPUT:
-            /* Enable peripheral for clocking input */
-            pmc_enable_periph_clk( g_APinDescription[ulPin].ulPeripheralId ) ;
-            PIO_Configure(
-            	g_APinDescription[ulPin].pPort,
-            	PIO_INPUT,
-            	g_APinDescription[ulPin].ulPin,
-            	0 ) ;
-            g_pinStatus[ulPin] = (g_pinStatus[ulPin] & 0xF0) | PIN_STATUS_DIGITAL_INPUT;
-        break ;
-
-        case INPUT_PULLUP:
-            /* Enable peripheral for clocking input */
-            pmc_enable_periph_clk( g_APinDescription[ulPin].ulPeripheralId ) ;
-            PIO_Configure(
-            	g_APinDescription[ulPin].pPort,
-            	PIO_INPUT,
-            	g_APinDescription[ulPin].ulPin,
-            	PIO_PULLUP ) ;
-            g_pinStatus[ulPin] = (g_pinStatus[ulPin] & 0xF0) | PIN_STATUS_DIGITAL_INPUT_PULLUP;
-        break ;
-
-        case OUTPUT:
-            PIO_Configure(
-            	g_APinDescription[ulPin].pPort,
-              (g_pinStatus[ulPin] & 0xF0) >> 4 ? PIO_OUTPUT_1 : PIO_OUTPUT_0,
-            	g_APinDescription[ulPin].ulPin,
-            	g_APinDescription[ulPin].ulPinConfiguration ) ;
-
-            g_pinStatus[ulPin] = (g_pinStatus[ulPin] & 0xF0) | PIN_STATUS_DIGITAL_OUTPUT;
-
-            /* if all pins are output, disable PIO Controller clocking, reduce power consumption */
-            if ( g_APinDescription[ulPin].pPort->PIO_OSR == 0xffffffff )
-            {
-                pmc_disable_periph_clk( g_APinDescription[ulPin].ulPeripheralId ) ;
-            }
-        break ;
-
-        default:
-        break ;
-    }
+    
+    g_anOutputPinConfigured[ulPin].configured = false;
+  }
+  
+  switch ( ulMode )
+  {
+    case INPUT:
+      digital_io_init(g_digPinConfigured[ulPin].ulPort,
+                    g_digPinConfigured[ulPin].ulPin,
+                    GPIO_MODE_INPUT, GPIO_NOPULL);
+    break;
+    case INPUT_PULLUP:
+      digital_io_init(g_digPinConfigured[ulPin].ulPort,
+                    g_digPinConfigured[ulPin].ulPin,
+                    GPIO_MODE_INPUT, GPIO_PULLUP);
+    break;
+    case INPUT_PULLDOWN:
+      digital_io_init(g_digPinConfigured[ulPin].ulPort,
+                    g_digPinConfigured[ulPin].ulPin,
+                    GPIO_MODE_INPUT, GPIO_PULLDOWN);
+    break;
+    case OUTPUT:
+      digital_io_init(g_digPinConfigured[ulPin].ulPort,
+                    g_digPinConfigured[ulPin].ulPin,
+                    GPIO_MODE_OUTPUT_PP, GPIO_NOPULL);
+    break;
+    default:
+    break;
+  }
 }
 
 extern void digitalWrite( uint32_t ulPin, uint32_t ulVal )
 {
-  /* Handle */
-	if ( g_APinDescription[ulPin].ulPinType == PIO_NOT_A_PIN )
-  {
+  //not a valid pin
+  if(ulPin>MAX_DIGITAL_IOS) {
     return ;
   }
 
-  if ((g_pinStatus[ulPin] & 0xF) == PIN_STATUS_PWM) {
-    pinMode(ulPin, OUTPUT);
-  }
-
-  g_pinStatus[ulPin] = (g_pinStatus[ulPin] & 0x0F) | (ulVal << 4) ;
-
-  if ( PIO_GetOutputDataStatus( g_APinDescription[ulPin].pPort, g_APinDescription[ulPin].ulPin ) == 0 )
-  {
-    PIO_PullUp( g_APinDescription[ulPin].pPort, g_APinDescription[ulPin].ulPin, ulVal ) ;
-  }
-  else
-  {
-    PIO_SetOutput( g_APinDescription[ulPin].pPort, g_APinDescription[ulPin].ulPin, ulVal, 0, PIO_PULLUP ) ;
+  if(g_digPinConfigured[ulPin].configured == true) {
+    digital_io_write(g_digPinConfigured[ulPin].ulPort,
+                  g_digPinConfigured[ulPin].ulPin,
+                  ulVal);
   }
 }
 
 extern int digitalRead( uint32_t ulPin )
 {
-  if ((g_pinStatus[ulPin] & 0xF) == PIN_STATUS_DIGITAL_OUTPUT) {
-    return (g_pinStatus[ulPin] & 0xF0) >> 4;
+
+  uint8_t level = 0;
+  //not a valid pin
+  if(ulPin>MAX_DIGITAL_IOS) {
+    return LOW;
   }
 
-  if ((g_pinStatus[ulPin] & 0xF) == PIN_STATUS_ANALOG) {
-    pinMode(ulPin, INPUT);
+  if(g_digPinConfigured[ulPin].configured == true) {
+    level = digital_io_read(g_digPinConfigured[ulPin].ulPort,
+                        g_digPinConfigured[ulPin].ulPin);
   }
 
-	if ( g_APinDescription[ulPin].ulPinType == PIO_NOT_A_PIN )
-    {
-        return LOW ;
-    }
-
-	if ( PIO_Get( g_APinDescription[ulPin].pPort, PIO_INPUT, g_APinDescription[ulPin].ulPin ) == 1 )
-    {
-        return HIGH ;
-    }
-
-	return LOW ;
+  if(level) {
+    return HIGH;
+  } else {
+    return LOW;
+  }
 }
 
 #ifdef __cplusplus
 }
 #endif
-
