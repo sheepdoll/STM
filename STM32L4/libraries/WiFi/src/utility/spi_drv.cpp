@@ -45,9 +45,12 @@ void SpiDrv::begin()
 
 	  // digitalWrite(SCK, LOW);
 	  // digitalWrite(MOSI, LOW);
-	  digitalWrite(SS, HIGH);
+	  //digitalWrite(SS, HIGH);
 	  digitalWrite(SLAVESELECT, HIGH);
 	  digitalWrite(WIFILED, LOW);
+	  
+	  //Wait wifi shield initialization (must be > 5s)
+	  delay(5000);
 
 #ifdef _DEBUG_
 	  INIT_TRIGGER()
@@ -74,7 +77,7 @@ char SpiDrv::spiTransfer(volatile char data)
 {
     char result = SPI.transfer(data);
     DELAY_TRANSFER();
-
+    
     return result;                    // return the received byte
 }
 
@@ -490,7 +493,6 @@ void SpiDrv::sendCmd(uint8_t cmd, uint8_t numParam)
     // If numParam == 0 send END CMD
     if (numParam == 0)
         spiTransfer(END_CMD);
-
 }
 
 SpiDrv spiDrv;

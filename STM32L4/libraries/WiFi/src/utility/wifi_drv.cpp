@@ -375,20 +375,20 @@ uint8_t WiFiDrv::getCurrentEncryptionType()
 
     // Send Command
     SpiDrv::sendCmd(GET_CURR_ENCT_CMD, PARAM_NUMS_1);
-
+    
     uint8_t _dummy = DUMMY_DATA;
     SpiDrv::sendParam(&_dummy, 1, LAST_PARAM);
 
     //Wait the reply elaboration
     SpiDrv::waitForSlaveReady();
-
+    
     // Wait for reply
     uint8_t dataLen = 0;
     uint8_t encType = 0;
     SpiDrv::waitResponseCmd(GET_CURR_ENCT_CMD, PARAM_NUMS_1, (uint8_t*)&encType, &dataLen);
 
     SpiDrv::spiSlaveDeselect();
-
+    
     return encType;
 }
 
