@@ -71,8 +71,6 @@ void LiquidCrystal::init(uint8_t fourbitmode, uint8_t rs, uint8_t rw, uint8_t en
     _displayfunction = LCD_4BITMODE | LCD_1LINE | LCD_5x8DOTS;
   else 
     _displayfunction = LCD_8BITMODE | LCD_1LINE | LCD_5x8DOTS;
-  
-  begin(16, 1);  
 }
 
 void LiquidCrystal::begin(uint8_t cols, uint8_t lines, uint8_t dotsize) {
@@ -315,6 +313,7 @@ void LiquidCrystal::write4bits(uint8_t value) {
   }
 
   pulseEnable();
+  delay(1); //Delay to prevent display errors
 }
 
 void LiquidCrystal::write8bits(uint8_t value) {
@@ -323,4 +322,5 @@ void LiquidCrystal::write8bits(uint8_t value) {
   }
   
   pulseEnable();
+  delay(1); //Delay to prevent display errors
 }
